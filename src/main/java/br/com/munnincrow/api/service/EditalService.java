@@ -1,5 +1,6 @@
 package br.com.munnincrow.api.service;
 
+import br.com.munnincrow.api.dto.EditalResponse;
 import br.com.munnincrow.api.dto.EstatisticaAreaTematicaResponse;
 import br.com.munnincrow.api.dto.EstatisticaCategoriaResponse;
 import br.com.munnincrow.api.dto.EstatisticaEstadoResponse;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -202,5 +204,22 @@ public class EditalService {
         if (hoje.isBefore(abertura)) return StatusEdital.PREVISTO;
         if (hoje.isAfter(encerramento)) return StatusEdital.FECHADO;
         return StatusEdital.ABERTO;
+    }
+
+    // ---------------------------------------------------------
+    // FILTRO PRINCIPAL USADO PELO CONTROLLER
+    // ---------------------------------------------------------
+    public Page<Edital> listarFiltrado(
+            String status,
+            String areaTematica,
+            String categoria,
+            String busca,
+            Pageable pageable
+    ) {
+        return editalRepo.filtrar(StatusEdital.valueOf(status), areaTematica, categoria, busca, pageable);
+    }
+
+    public Map<String, Long> contarPorEstado() {
+        return editalRepo.countByEstado();
     }
 }

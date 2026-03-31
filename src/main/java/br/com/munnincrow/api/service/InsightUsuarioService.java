@@ -35,10 +35,9 @@ public class InsightUsuarioService {
 
         List<InteracaoEdital> interacoes = interacaoRepo.findByUsuario(usuario);
 
-        // ---------------------------
+        // ---------------------------------------------------------
         // TENDÊNCIAS DO USUÁRIO
-        // ---------------------------
-
+        // ---------------------------------------------------------
         resp.categoriasMaisAcessadas = interacoes.stream()
                 .map(i -> i.getEdital().getCategoria())
                 .filter(Objects::nonNull)
@@ -49,25 +48,22 @@ public class InsightUsuarioService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
-        // ORGAO É ENUM → converter para string
         resp.orgaosMaisAcessados = interacoes.stream()
                 .map(i -> i.getEdital().getOrgao())
                 .filter(Objects::nonNull)
                 .map(Enum::name) // Angular-friendly
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
-        // ---------------------------
+        // ---------------------------------------------------------
         // ENGAJAMENTO
-        // ---------------------------
-
+        // ---------------------------------------------------------
         resp.totalCliques = interacoes.stream().filter(InteracaoEdital::isClicou).count();
         resp.totalFavoritos = interacoes.stream().filter(InteracaoEdital::isFavoritou).count();
         resp.totalInscricoes = interacoes.stream().filter(InteracaoEdital::isSeInscreveu).count();
 
-        // ---------------------------
+        // ---------------------------------------------------------
         // MOTIVOS DAS RECOMENDAÇÕES
-        // ---------------------------
-
+        // ---------------------------------------------------------
         resp.motivosRecomendacao = recomendacaoService.recomendarPara(usuario)
                 .stream()
                 .map(e -> {
@@ -88,10 +84,9 @@ public class InsightUsuarioService {
                 })
                 .toList();
 
-        // ---------------------------
+        // ---------------------------------------------------------
         // OPORTUNIDADES NÃO VISTAS
-        // ---------------------------
-
+        // ---------------------------------------------------------
         List<Edital> recomendados = recomendacaoService.recomendarPara(usuario);
 
         Set<Long> vistos = interacoes.stream()

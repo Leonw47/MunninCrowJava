@@ -13,7 +13,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 public interface EditalRepository extends JpaRepository<Edital, Long> {
@@ -30,6 +32,9 @@ public interface EditalRepository extends JpaRepository<Edital, Long> {
 
     Page<Edital> findByStatus(StatusEdital status, Pageable pageable);
 
+    // ---------------------------------------------------------
+    // BUSCA AVANÇADA (RF03)
+    // ---------------------------------------------------------
     @Query("""
         SELECT e FROM Edital e
         WHERE (:estado IS NULL OR e.estado = :estado)
@@ -47,6 +52,9 @@ public interface EditalRepository extends JpaRepository<Edital, Long> {
             Pageable pageable
     );
 
+    // ---------------------------------------------------------
+    // ESTATÍSTICAS (RF03)
+    // ---------------------------------------------------------
     @Query("""
         SELECT new br.com.munnincrow.api.dto.EstatisticaEstadoResponse(
             COALESCE(e.estado, 'Não informado'),
@@ -76,4 +84,35 @@ public interface EditalRepository extends JpaRepository<Edital, Long> {
         GROUP BY e.areaTematica
         """)
     List<EstatisticaAreaTematicaResponse> estatisticasPorAreaTematica();
+
+    // ---------------------------------------------------------
+    // FILTRO PRINCIPAL USADO PELO CONTROLLER
+    // ---------------------------------------------------------
+    @Query("""
+       SELECT e FROM Edital e
+       WHERE (:status IS NULL OR e.status = :status)
+         AND (:areaTematica IS NULL OR e.areaTematicaReal = :areaTematica)
+         AND (:categoria IS NULL OR e.categoria = :categoria)
+         AND (:busca IS NULL OR 
+              LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%')) OR
+              LOWER(e.objetivo) LIKE LOWER(CONCAT('%', :busca, '%')))
+       """)
+    Page<Edital> filtrar(
+            StatusEdital status,
+            String areaTematica,
+            String categoria,
+            String busca,
+            Pageable pageable
+    );
+
+    @Query("SELECT e.estado, COUNT(e) FROM Edital e GROUP BY e.estado")
+    List<Object[]> countRawByEstado();
+
+    default Map<String, Long> countByEstado() {
+        return countRawByEstado().stream()
+                .collect(Collectors.toMap(
+                        r -> (String) r[0],
+                        r -> (Long) r[1]
+                ));
+    }
 }

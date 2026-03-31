@@ -22,6 +22,9 @@ public class RecomendacaoEditalService {
         this.interacaoRepo = interacaoRepo;
     }
 
+    // ---------------------------------------------------------
+    // RECOMENDAÇÃO PRINCIPAL
+    // ---------------------------------------------------------
     public List<Edital> recomendarPara(User usuario) {
 
         List<Edital> editais = editalRepo.findAll();
@@ -34,6 +37,9 @@ public class RecomendacaoEditalService {
                 .toList();
     }
 
+    // ---------------------------------------------------------
+    // SCORE FINAL
+    // ---------------------------------------------------------
     public double calcularScore(Edital edital, User usuario) {
         double aderencia = calcularAderenciaTematica(edital, usuario);
         double maturidade = calcularCompatibilidadeMaturidade(edital, usuario);
@@ -50,8 +56,12 @@ public class RecomendacaoEditalService {
                 (0.05 * urgencia);
     }
 
+    // ---------------------------------------------------------
+    // ADERÊNCIA TEMÁTICA
+    // ---------------------------------------------------------
     public double calcularAderenciaTematica(Edital edital, User usuario) {
-        if (usuario.getSegmento() == null || edital.getAreaTematicaReal() == null) return 0.3;
+        if (usuario.getSegmento() == null || edital.getAreaTematicaReal() == null)
+            return 0.3;
 
         String area = edital.getAreaTematicaReal().toLowerCase();
         String seg = usuario.getSegmento().toLowerCase();
@@ -59,32 +69,49 @@ public class RecomendacaoEditalService {
         return area.contains(seg) ? 1.0 : 0.2;
     }
 
+    // ---------------------------------------------------------
+    // MATURIDADE DO NEGÓCIO
+    // ---------------------------------------------------------
     public double calcularCompatibilidadeMaturidade(Edital edital, User usuario) {
-        if (usuario.getMaturidade() == null) return 0.3;
+        if (usuario.getMaturidade() == null)
+            return 0.3;
 
         String objetivo = edital.getObjetivo() != null ? edital.getObjetivo().toLowerCase() : "";
 
-        if (usuario.getMaturidade().equalsIgnoreCase("ideia") && objetivo.contains("ideação")) return 1.0;
-        if (usuario.getMaturidade().equalsIgnoreCase("tração") && objetivo.contains("escala")) return 1.0;
+        if (usuario.getMaturidade().equalsIgnoreCase("ideia") && objetivo.contains("ideação"))
+            return 1.0;
+
+        if (usuario.getMaturidade().equalsIgnoreCase("tração") && objetivo.contains("escala"))
+            return 1.0;
 
         return 0.4;
     }
 
+    // ---------------------------------------------------------
+    // VALOR FINANCEIRO
+    // ---------------------------------------------------------
     public double calcularValorFinanceiro(Edital edital, User usuario) {
-        if (edital.getValorMaximo() == null || usuario.getFaturamentoAnual() == null) return 0.5;
+        if (edital.getValorMaximo() == null || usuario.getFaturamentoAnual() == null)
+            return 0.5;
 
         double v = edital.getValorMaximo();
         double f = usuario.getFaturamentoAnual();
 
-        if (v >= f * 0.5 && v <= f * 5) return 1.0;
+        if (v >= f * 0.5 && v <= f * 5)
+            return 1.0;
+
         return 0.3;
     }
 
+    // ---------------------------------------------------------
+    // HISTÓRICO DE INTERAÇÕES
+    // ---------------------------------------------------------
     public double calcularHistorico(Edital edital, User usuario) {
         List<InteracaoEdital> interacoes =
                 interacaoRepo.findByUsuarioAndEdital(usuario, edital);
 
-        if (interacoes.isEmpty()) return 0.2;
+        if (interacoes.isEmpty())
+            return 0.2;
 
         double score = 0;
 
@@ -97,23 +124,33 @@ public class RecomendacaoEditalService {
         return Math.min(score, 1.0);
     }
 
+    // ---------------------------------------------------------
+    // NOVIDADE DO EDITAL
+    // ---------------------------------------------------------
     public double calcularNovidade(Edital edital) {
-        if (edital.getDataImportacao() == null) return 0.3;
+        if (edital.getDataImportacao() == null)
+            return 0.3;
 
         long dias = java.time.temporal.ChronoUnit.DAYS.between(edital.getDataImportacao(), LocalDate.now());
 
         if (dias <= 3) return 1.0;
         if (dias <= 10) return 0.7;
+
         return 0.3;
     }
 
+    // ---------------------------------------------------------
+    // URGÊNCIA DO EDITAL
+    // ---------------------------------------------------------
     public double calcularUrgencia(Edital edital) {
-        if (edital.getDataEncerramento() == null) return 0.3;
+        if (edital.getDataEncerramento() == null)
+            return 0.3;
 
         long dias = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), edital.getDataEncerramento());
 
         if (dias <= 3) return 1.0;
         if (dias <= 10) return 0.7;
+
         return 0.3;
     }
 

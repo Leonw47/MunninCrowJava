@@ -1,19 +1,14 @@
 package br.com.munnincrow.api.controller;
 
-import br.com.munnincrow.api.dto.EditalRequest;
-import br.com.munnincrow.api.dto.EditalResponse;
-import br.com.munnincrow.api.dto.EstatisticaEstadoResponse;
-import br.com.munnincrow.api.dto.EstatisticaCategoriaResponse;
-import br.com.munnincrow.api.dto.EstatisticaAreaTematicaResponse;
+import br.com.munnincrow.api.dto.*;
 import br.com.munnincrow.api.model.Edital;
 import br.com.munnincrow.api.service.EditalImportService;
 import br.com.munnincrow.api.service.EditalService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -73,13 +68,20 @@ public class EditalController {
     // CONSULTAS (RF03)
     // ---------------------------------------------------------
     @GetMapping
-    public Page<EditalResponse> listar(Pageable pageable) {
-        return service.listar(pageable).map(this::toResponse);
+    public Page<EditalResponse> listar(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String areaTematica,
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) String busca,
+            @PageableDefault(size = 20, sort = "dataEncerramento", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        return service.listarFiltrado(status, areaTematica, categoria, busca, pageable)
+                .map(this::toResponse);
     }
 
-    @GetMapping("/estado/{uf}")
-    public Page<EditalResponse> listarPorEstado(@PathVariable String uf, Pageable pageable) {
-        return service.listarPorEstado(uf, pageable).map(this::toResponse);
+    @GetMapping("/por-estado")
+    public Map<String, Long> porEstado() {
+        return service.contarPorEstado();
     }
 
     @GetMapping("/orgao/{nome}")
