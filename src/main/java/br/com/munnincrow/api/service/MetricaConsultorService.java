@@ -19,7 +19,7 @@ public class MetricaConsultorService {
         this.userService = userService;
     }
 
-    public MetricaConsultorResponse buscarMetricas(Long consultorId) {
+    public MetricaConsultorResponse calcular(Long consultorId) {
 
         User consultor = userService.buscarPorId(consultorId);
         if (consultor == null) throw new IllegalArgumentException("Consultor não encontrado.");

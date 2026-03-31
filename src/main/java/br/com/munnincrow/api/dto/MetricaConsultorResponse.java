@@ -2,12 +2,8 @@ package br.com.munnincrow.api.dto;
 
 public class MetricaConsultorResponse {
     public Long consultorId;
-    public double media;
-    public int totalAvaliacoes;
-    public int nota5;
-    public int nota4;
-    public int nota3;
-    public int nota2;
-    public int nota1;
-    public double percentualPositivas; // <-- CAMPO QUE FALTAVA
+    public Double media;
+    public Integer totalAvaliacoes;
+    public int nota5, nota4, nota3, nota2, nota1;
+    public double percentualPositivas;
 }

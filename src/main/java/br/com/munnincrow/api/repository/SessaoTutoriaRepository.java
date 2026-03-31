@@ -20,5 +20,5 @@ public interface SessaoTutoriaRepository extends JpaRepository<SessaoTutoria, Lo
 
     List<SessaoTutoria> findByConsultorIdAndInicioAfterOrderByInicioAsc(Long consultorId, LocalDateTime now);
 
-    int countByConsultorIdAndStatus(Long consultorId, StatusSessao statusSessao);
+    long countByConsultorIdAndStatus(Long consultorId, StatusSessao status);
 }

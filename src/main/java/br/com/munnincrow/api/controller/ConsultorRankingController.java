@@ -1,12 +1,11 @@
 package br.com.munnincrow.api.controller;
 
 import br.com.munnincrow.api.dto.ConsultorResponse;
+import br.com.munnincrow.api.dto.MetricaConsultorResponse;
+import br.com.munnincrow.api.dto.RankingConsultorResponse;
 import br.com.munnincrow.api.service.MetricaConsultorService;
 import br.com.munnincrow.api.service.RankingConsultorService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -32,8 +31,13 @@ public class ConsultorRankingController {
                 .toList();
     }
 
+    @GetMapping("/{consultorId}/ranking")
+    public RankingConsultorResponse rankingIndividual(@PathVariable Long consultorId) {
+        return rankingService.buscarRanking(consultorId);
+    }
+
     @GetMapping("/{consultorId}/metricas")
-    public MetricasConsultorResponse metricas(@PathVariable Long consultorId) {
+    public MetricaConsultorResponse metricas(@PathVariable Long consultorId) {
         return metricasService.calcular(consultorId);
     }
 }

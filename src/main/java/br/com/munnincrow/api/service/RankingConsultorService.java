@@ -9,6 +9,7 @@ import br.com.munnincrow.api.repository.PropostaTutoriaRepository;
 import br.com.munnincrow.api.repository.SessaoTutoriaRepository;
 import br.com.munnincrow.api.repository.UserRepository;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
@@ -31,14 +32,17 @@ public class RankingConsultorService {
         this.propostaRepo = propostaRepo;
     }
 
+    public List<User> ranking() {
+        return userRepo.findByTipoUsuarioOrderByMediaAvaliacoesDesc("CONSULTOR");
+    }
+
     public RankingConsultorResponse buscarRanking(Long consultorId) {
 
-        List<User> consultores = userRepo.findByTipoUsuarioOrderByMediaAvaliacoesDesc("CONSULTOR");
+        List<User> consultores = ranking();
 
         RankingConsultorResponse resp = new RankingConsultorResponse();
         resp.consultorId = consultorId;
 
-        // posição no ranking
         for (int i = 0; i < consultores.size(); i++) {
             if (consultores.get(i).getId().equals(consultorId)) {
                 resp.posicao = i + 1;
@@ -61,7 +65,7 @@ public class RankingConsultorService {
                         (resp.sessoesConcluidas * 1.2) +
                         (resp.propostasAceitas * 1.5);
 
-        resp.variacaoSemanal = 0; // pronto para evolução futura
+        resp.variacaoSemanal = 0;
 
         return resp;
     }

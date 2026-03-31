@@ -15,5 +15,5 @@ public interface PropostaTutoriaRepository extends JpaRepository<PropostaTutoria
 
     List<PropostaTutoria> findByAutorIdOrderByDataCriacaoDesc(Long autorId);
 
-    int countByAutorIdAndStatus(Long consultorId, StatusPropostaTutoria statusPropostaTutoria);
+    long countByAutorIdAndStatus(Long autorId, StatusPropostaTutoria status);
 }
