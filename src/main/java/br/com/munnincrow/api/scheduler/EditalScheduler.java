@@ -30,17 +30,23 @@ public class EditalScheduler {
         try {
             List<Edital> editais = importService.importarTodos();
             int novos = 0;
+            int atualizados = 0;
 
             for (Edital edital : editais) {
                 try {
-                    editalService.salvarImportado(edital);
+                    Edital salvo = editalService.salvarImportado(edital);
+                    if (salvo.getDataImportacao() != null) {
+                        // aqui você pode diferenciar novo/atualizado se quiser,
+                        // por enquanto vamos contar tudo como "processado"
+                    }
                     novos++;
                 } catch (Exception e) {
-                    logger.warn("Edital ignorado (duplicado ou inválido): {} - Motivo: {}", edital.getTitulo(), e.getMessage());
+                    logger.warn("Edital ignorado (duplicado ou inválido): {} - Motivo: {}",
+                            edital.getTitulo(), e.getMessage());
                 }
             }
 
-            logger.info("Importação concluída. Novos editais adicionados: {}", novos);
+            logger.info("Importação concluída. Editais processados: {}", novos);
 
         } catch (Exception e) {
             logger.error("Erro durante importação automática de editais", e);

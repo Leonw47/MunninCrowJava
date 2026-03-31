@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class EditalService {
@@ -30,7 +31,11 @@ public class EditalService {
     public Edital criar(Edital edital) {
         validarEdital(edital);
         verificarDuplicacao(edital);
+
         edital.setFonte(FonteImportacao.MANUAL);
+        edital.setStatus(calcularStatus(edital.getDataAbertura(), edital.getDataEncerramento()));
+        edital.setDataImportacao(LocalDate.now());
+
         return editalRepo.save(edital);
     }
 
@@ -45,7 +50,11 @@ public class EditalService {
         existente.setDataAbertura(dados.getDataAbertura());
         existente.setDataEncerramento(dados.getDataEncerramento());
         existente.setAreaTematica(dados.getAreaTematica());
+        existente.setAreaTematicaReal(dados.getAreaTematicaReal());
         existente.setCategoria(dados.getCategoria());
+        existente.setValorMaximo(dados.getValorMaximo());
+        existente.setObjetivo(dados.getObjetivo());
+        existente.setPublicoAlvo(dados.getPublicoAlvo());
         existente.setStatus(calcularStatus(dados.getDataAbertura(), dados.getDataEncerramento()));
 
         return editalRepo.save(existente);
@@ -106,7 +115,33 @@ public class EditalService {
     // ---------------------------------------------------------
     public Edital salvarImportado(Edital edital) {
         validarEdital(edital);
-        verificarDuplicacao(edital);
+
+        Optional<Edital> existenteOpt = editalRepo.findByLinkOficial(edital.getLinkOficial());
+
+        if (existenteOpt.isPresent()) {
+            Edital existente = existenteOpt.get();
+
+            existente.setTitulo(edital.getTitulo());
+            existente.setDescricaoCurta(edital.getDescricaoCurta());
+            existente.setDataAbertura(edital.getDataAbertura());
+            existente.setDataEncerramento(edital.getDataEncerramento());
+            existente.setCategoria(edital.getCategoria());
+            existente.setAreaTematica(edital.getAreaTematica());
+            existente.setAreaTematicaReal(edital.getAreaTematicaReal());
+            existente.setValorMaximo(edital.getValorMaximo());
+            existente.setObjetivo(edital.getObjetivo());
+            existente.setPublicoAlvo(edital.getPublicoAlvo());
+            existente.setStatus(calcularStatus(edital.getDataAbertura(), edital.getDataEncerramento()));
+            existente.setFonte(FonteImportacao.SCRAPER);
+            existente.setDataImportacao(LocalDate.now());
+
+            return editalRepo.save(existente);
+        }
+
+        edital.setFonte(FonteImportacao.SCRAPER);
+        edital.setStatus(calcularStatus(edital.getDataAbertura(), edital.getDataEncerramento()));
+        edital.setDataImportacao(LocalDate.now());
+
         return editalRepo.save(edital);
     }
 

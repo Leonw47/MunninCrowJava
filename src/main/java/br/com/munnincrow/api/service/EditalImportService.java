@@ -17,18 +17,16 @@ public class EditalImportService {
     }
 
     public List<Edital> importarTodos() {
-        List<Edital> lista = new ArrayList<>();
+        List<Edital> todos = new ArrayList<>();
 
         for (ScraperEdital scraper : scrapers) {
             try {
-                lista.addAll(scraper.importar());
+                todos.addAll(scraper.importar());
             } catch (Exception e) {
-                System.err.println("Erro ao executar scraper "
-                        + scraper.getClass().getSimpleName()
-                        + ": " + e.getMessage());
+                // logar por scraper se quiser
             }
         }
 
-        return lista;
+        return todos;
     }
 }

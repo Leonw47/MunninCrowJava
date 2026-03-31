@@ -33,7 +33,6 @@ public class EditalController {
     public ResponseEntity<List<EditalResponse>> importar() {
         List<Edital> importados = importService.importarTodos();
 
-        // Salva cada edital importado
         importados.forEach(service::salvarImportado);
 
         return ResponseEntity.ok(
@@ -43,20 +42,17 @@ public class EditalController {
 
     @GetMapping
     public Page<EditalResponse> listar(Pageable pageable) {
-        return service.listar(pageable)
-                .map(this::toResponse);
+        return service.listar(pageable).map(this::toResponse);
     }
 
     @GetMapping("/estado/{uf}")
     public Page<EditalResponse> listarPorEstado(@PathVariable String uf, Pageable pageable) {
-        return service.listarPorEstado(uf, pageable)
-                .map(this::toResponse);
+        return service.listarPorEstado(uf, pageable).map(this::toResponse);
     }
 
     @GetMapping("/orgao/{nome}")
     public Page<EditalResponse> listarPorOrgao(@PathVariable String nome, Pageable pageable) {
-        return service.listarPorOrgao(nome, pageable)
-                .map(this::toResponse);
+        return service.listarPorOrgao(nome, pageable).map(this::toResponse);
     }
 
     @GetMapping("/busca")
@@ -74,16 +70,13 @@ public class EditalController {
 
     @GetMapping("/buscar")
     public Page<EditalResponse> buscarTexto(@RequestParam String texto, Pageable pageable) {
-        return service.buscaTexto(texto, pageable)
-                .map(this::toResponse);
+        return service.buscaTexto(texto, pageable).map(this::toResponse);
     }
 
     @GetMapping("/autocomplete")
     public List<EditalResponse> autocomplete(@RequestParam String texto) {
         Pageable limit = PageRequest.of(0, 5);
-        return service.buscaTexto(texto, limit)
-                .map(this::toResponse)
-                .toList();
+        return service.buscaTexto(texto, limit).map(this::toResponse).toList();
     }
 
     @GetMapping("/estatisticas/por-estado")
@@ -103,14 +96,12 @@ public class EditalController {
 
     @GetMapping("/{id}")
     public ResponseEntity<EditalResponse> buscarPorId(@PathVariable Long id) {
-        Edital edital = service.buscarPorId(id);
-        return ResponseEntity.ok(toResponse(edital));
+        return ResponseEntity.ok(toResponse(service.buscarPorId(id)));
     }
 
     @PostMapping
     public ResponseEntity<EditalResponse> salvar(@Valid @RequestBody EditalRequest dto) {
-        Edital edital = toEntity(dto);
-        Edital salvo = service.criar(edital);
+        Edital salvo = service.criar(toEntity(dto));
         return ResponseEntity.ok(toResponse(salvo));
     }
 
@@ -133,10 +124,14 @@ public class EditalController {
         edital.setOrgao(dto.orgao);
         edital.setEstado(dto.estado);
         edital.setAreaTematica(dto.areaTematica);
+        edital.setAreaTematicaReal(dto.areaTematicaReal);
         edital.setCategoria(dto.categoria);
         edital.setDataAbertura(dto.dataAbertura);
         edital.setDataEncerramento(dto.dataEncerramento);
         edital.setLinkOficial(dto.link);
+        edital.setValorMaximo(dto.valorMaximo);
+        edital.setObjetivo(dto.objetivo);
+        edital.setPublicoAlvo(dto.publicoAlvo);
         edital.setStatus(dto.status);
         return edital;
     }
@@ -149,10 +144,14 @@ public class EditalController {
         resp.orgao = edital.getOrgao();
         resp.estado = edital.getEstado();
         resp.areaTematica = edital.getAreaTematica();
+        resp.areaTematicaReal = edital.getAreaTematicaReal();
         resp.categoria = edital.getCategoria();
         resp.dataAbertura = edital.getDataAbertura();
         resp.dataEncerramento = edital.getDataEncerramento();
         resp.link = edital.getLinkOficial();
+        resp.valorMaximo = edital.getValorMaximo();
+        resp.objetivo = edital.getObjetivo();
+        resp.publicoAlvo = edital.getPublicoAlvo();
         resp.status = edital.getStatus();
         resp.dataImportacao = edital.getDataImportacao();
         return resp;

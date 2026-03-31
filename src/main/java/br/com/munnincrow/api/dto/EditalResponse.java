@@ -9,14 +9,18 @@ public class EditalResponse {
 
     public Long id;
     public String titulo;
-    public String descricao; // vem de descricaoCurta
+    public String descricao;
     public OrgaoEdital orgao;
     public String estado;
-    public String areaTematica;
     public String categoria;
+    public String areaTematica;
+    public String areaTematicaReal;
     public LocalDate dataAbertura;
     public LocalDate dataEncerramento;
-    public String link; // vem de linkOficial
+    public String link;
+    public Double valorMaximo;
+    public String objetivo;
+    public String publicoAlvo;
     public StatusEdital status;
     public LocalDate dataImportacao;
 }

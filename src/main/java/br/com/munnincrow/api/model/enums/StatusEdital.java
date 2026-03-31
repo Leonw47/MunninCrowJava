@@ -3,5 +3,7 @@ package br.com.munnincrow.api.model.enums;
 public enum StatusEdital {
     ABERTO,
     FECHADO,
-    PREVISTO
+    PREVISTO,
+    ENCERRADO,
+    EM_BREVE
 }
