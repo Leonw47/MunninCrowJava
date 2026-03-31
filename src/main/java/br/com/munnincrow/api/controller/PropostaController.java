@@ -1,80 +1,132 @@
 package br.com.munnincrow.api.controller;
 
-import br.com.munnincrow.api.dto.PropostaCreateDTO;
-import br.com.munnincrow.api.model.Edital;
-import br.com.munnincrow.api.model.Proposta;
-import br.com.munnincrow.api.model.User;
-import br.com.munnincrow.api.service.EditalService;
-import br.com.munnincrow.api.service.PropostaService;
-import br.com.munnincrow.api.service.UserService;
+import br.com.munnincrow.api.dto.*;
+import br.com.munnincrow.api.model.*;
+import br.com.munnincrow.api.service.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/propostas")
+@RequestMapping("/api/propostas")
 public class PropostaController {
 
     private final PropostaService propostaService;
-    private final UserService userService;
+    private final CampoPropostaService campoService;
     private final EditalService editalService;
 
     public PropostaController(PropostaService propostaService,
-                              UserService userService,
+                              CampoPropostaService campoService,
                               EditalService editalService) {
         this.propostaService = propostaService;
-        this.userService = userService;
+        this.campoService = campoService;
         this.editalService = editalService;
     }
 
+    // ---------------------------------------------------------
+    // CRIAR PROPOSTA PARA UM EDITAL
+    // ---------------------------------------------------------
+    @PostMapping("/criar")
+    public ResponseEntity<PropostaResponse> criar(@RequestBody PropostaRequest req,
+                                                  @RequestAttribute("usuario") User usuario) {
+
+        Edital edital = editalService.buscarPorId(req.editalId);
+        Proposta proposta = propostaService.criarProposta(usuario, edital);
+
+        return ResponseEntity.ok(toResponse(proposta));
+    }
+
+    // ---------------------------------------------------------
+    // LISTAR PROPOSTAS DO USUÁRIO
+    // ---------------------------------------------------------
     @GetMapping
-    public List<Proposta> listar() {
-        return propostaService.listar();
+    public List<PropostaResponse> listar(@RequestAttribute("usuario") User usuario) {
+        return propostaService.listarPorUsuario(usuario)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
+    // ---------------------------------------------------------
+    // BUSCAR PROPOSTA POR ID
+    // ---------------------------------------------------------
     @GetMapping("/{id}")
-    public ResponseEntity<Proposta> buscarPorId(@PathVariable Long id) {
-        Proposta p = propostaService.buscarPorId(id);
-        return p != null ? ResponseEntity.ok(p) : ResponseEntity.notFound().build();
+    public ResponseEntity<PropostaResponse> buscar(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(propostaService.buscarPorId(id)));
     }
 
-    @GetMapping("/edital/{editalId}")
-    public List<Proposta> listarPorEdital(@PathVariable Long editalId) {
-        return propostaService.listarPorEdital(editalId);
+    // ---------------------------------------------------------
+    // LISTAR CAMPOS DA PROPOSTA
+    // ---------------------------------------------------------
+    @GetMapping("/{id}/campos")
+    public List<CampoPropostaResponse> listarCampos(@PathVariable Long id) {
+        return campoService.listarPorProposta(id)
+                .stream()
+                .map(this::toCampoResponse)
+                .toList();
     }
 
-    @GetMapping("/usuario/{userId}")
-    public List<Proposta> listarPorUsuario(@PathVariable Long userId) {
-        return propostaService.listarPorUsuario(userId);
+    // ---------------------------------------------------------
+    // AUTO-SAVE DE CAMPO
+    // ---------------------------------------------------------
+    @PutMapping("/{id}/campo")
+    public ResponseEntity<CampoPropostaResponse> salvarCampo(@PathVariable Long id,
+                                                             @RequestBody CampoPropostaRequest req) {
+
+        CampoProposta campo = campoService.salvarValorCampo(id, req.nomeCampo, req.valor);
+        return ResponseEntity.ok(toCampoResponse(campo));
     }
 
-    @PostMapping
-    public ResponseEntity<?> criar(@RequestBody PropostaCreateDTO dto) {
+    // ---------------------------------------------------------
+    // MARCAR CAMPO COMO CONCLUÍDO
+    // ---------------------------------------------------------
+    @PutMapping("/campo/{campoId}/concluir")
+    public ResponseEntity<CampoPropostaResponse> concluir(@PathVariable Long campoId,
+                                                          @RequestParam boolean concluido) {
 
-        User user = userService.buscarPorId(dto.userId);
-        if (user == null) {
-            return ResponseEntity.badRequest().body("Usuário não encontrado.");
-        }
-
-        Edital edital = editalService.buscarPorId(dto.editalId);
-        if (edital == null) {
-            return ResponseEntity.badRequest().body("Edital não encontrado.");
-        }
-
-        Proposta proposta = propostaService.criar(dto, user, edital);
-        return ResponseEntity.status(201).body(proposta);
+        CampoProposta campo = campoService.marcarConcluido(campoId, concluido);
+        return ResponseEntity.ok(toCampoResponse(campo));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Proposta dados) {
-        Proposta atualizada = propostaService.atualizar(id, dados);
-        return atualizada != null ? ResponseEntity.ok(atualizada) : ResponseEntity.notFound().build();
+    // ---------------------------------------------------------
+    // CONVERSÃO DTOs
+    // ---------------------------------------------------------
+    private PropostaResponse toResponse(Proposta p) {
+        PropostaResponse r = new PropostaResponse();
+        r.id = p.getId();
+        r.editalId = p.getEdital().getId();
+        r.editalTitulo = p.getEdital().getTitulo();
+        r.titulo = p.getTitulo();
+        r.status = p.getStatus();
+        r.dataCriacao = p.getDataCriacao();
+        r.dataAtualizacao = p.getDataAtualizacao();
+
+        r.campos = p.getCampos()
+                .stream()
+                .map(this::toCampoResponse)
+                .toList();
+
+        return r;
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletar(@PathVariable Long id) {
-        boolean removido = propostaService.deletar(id);
-        return removido ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    private CampoPropostaResponse toCampoResponse(CampoProposta c) {
+        CampoPropostaResponse r = new CampoPropostaResponse();
+        r.id = c.getId();
+        r.nomeCampo = c.getNomeCampo();
+        r.valor = c.getValor();
+        r.concluido = c.isConcluido();
+        return r;
+    }
+
+    @PutMapping("/{id}/campo/gerar")
+    public ResponseEntity<CampoPropostaResponse> gerarComIA(
+            @PathVariable Long id,
+            @RequestParam String nomeCampo) {
+
+        String texto = IAPropostaService.gerarTextoParaCampo(id, nomeCampo);
+        CampoProposta campo = campoService.salvarValorGerado(id, nomeCampo, texto);
+
+        return ResponseEntity.ok(toCampoResponse(campo));
     }
 }

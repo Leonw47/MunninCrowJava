@@ -2,8 +2,10 @@ package br.com.munnincrow.api.controller;
 
 import br.com.munnincrow.api.dto.*;
 import br.com.munnincrow.api.model.Edital;
+import br.com.munnincrow.api.model.FormularioEdital;
 import br.com.munnincrow.api.service.EditalImportService;
 import br.com.munnincrow.api.service.EditalService;
+import br.com.munnincrow.api.service.ExtracaoFormularioService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.*;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 
@@ -20,12 +23,18 @@ public class EditalController {
 
     private static final Logger logger = LoggerFactory.getLogger(EditalController.class);
 
-    private final EditalService service;
+    private final EditalService editalService;
     private final EditalImportService importService;
+    private final ExtracaoFormularioService extracaoFormularioService;
 
-    public EditalController(EditalService service, EditalImportService importService) {
-        this.service = service;
+    public EditalController(
+            EditalService editalService,
+            EditalImportService importService,
+            ExtracaoFormularioService extracaoFormularioService
+    ) {
+        this.editalService = editalService;
         this.importService = importService;
+        this.extracaoFormularioService = extracaoFormularioService;
     }
 
     // ---------------------------------------------------------
@@ -43,8 +52,8 @@ public class EditalController {
 
         for (Edital edital : importados) {
             try {
-                boolean existe = service.buscarPorLinkOptional(edital.getLinkOficial()).isPresent();
-                service.salvarImportado(edital);
+                boolean existe = editalService.buscarPorLinkOptional(edital.getLinkOficial()).isPresent();
+                editalService.salvarImportado(edital);
 
                 if (existe) atualizados++;
                 else novos++;
@@ -75,18 +84,18 @@ public class EditalController {
             @RequestParam(required = false) String busca,
             @PageableDefault(size = 20, sort = "dataEncerramento", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return service.listarFiltrado(status, areaTematica, categoria, busca, pageable)
+        return editalService.listarFiltrado(status, areaTematica, categoria, busca, pageable)
                 .map(this::toResponse);
     }
 
     @GetMapping("/por-estado")
     public Map<String, Long> porEstado() {
-        return service.contarPorEstado();
+        return editalService.contarPorEstado();
     }
 
     @GetMapping("/orgao/{nome}")
     public Page<EditalResponse> listarPorOrgao(@PathVariable String nome, Pageable pageable) {
-        return service.listarPorOrgao(nome, pageable).map(this::toResponse);
+        return editalService.listarPorOrgao(nome, pageable).map(this::toResponse);
     }
 
     @GetMapping("/busca")
@@ -98,39 +107,39 @@ public class EditalController {
             @RequestParam(required = false) String status,
             Pageable pageable
     ) {
-        return service.buscaAvancada(estado, orgao, categoria, areaTematica, status, pageable)
+        return editalService.buscaAvancada(estado, orgao, categoria, areaTematica, status, pageable)
                 .map(this::toResponse);
     }
 
     @GetMapping("/buscar")
     public Page<EditalResponse> buscarTexto(@RequestParam String texto, Pageable pageable) {
-        return service.buscaTexto(texto, pageable).map(this::toResponse);
+        return editalService.buscaTexto(texto, pageable).map(this::toResponse);
     }
 
     @GetMapping("/autocomplete")
     public List<EditalResponse> autocomplete(@RequestParam String texto) {
         Pageable limit = PageRequest.of(0, 5);
-        return service.buscaTexto(texto, limit).map(this::toResponse).toList();
+        return editalService.buscaTexto(texto, limit).map(this::toResponse).toList();
     }
 
     @GetMapping("/estatisticas/por-estado")
     public List<EstatisticaEstadoResponse> estatisticasPorEstado() {
-        return service.estatisticasPorEstado();
+        return editalService.estatisticasPorEstado();
     }
 
     @GetMapping("/estatisticas/por-categoria")
     public List<EstatisticaCategoriaResponse> estatisticasPorCategoria() {
-        return service.estatisticasPorCategoria();
+        return editalService.estatisticasPorCategoria();
     }
 
     @GetMapping("/estatisticas/por-area-tematica")
     public List<EstatisticaAreaTematicaResponse> estatisticasPorAreaTematica() {
-        return service.estatisticasPorAreaTematica();
+        return editalService.estatisticasPorAreaTematica();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<EditalResponse> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(toResponse(service.buscarPorId(id)));
+        return ResponseEntity.ok(toResponse(editalService.buscarPorId(id)));
     }
 
     // ---------------------------------------------------------
@@ -138,20 +147,34 @@ public class EditalController {
     // ---------------------------------------------------------
     @PostMapping
     public ResponseEntity<EditalResponse> salvar(@Valid @RequestBody EditalRequest dto) {
-        Edital salvo = service.criar(toEntity(dto));
+        Edital salvo = editalService.criar(toEntity(dto));
         return ResponseEntity.status(201).body(toResponse(salvo));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<EditalResponse> atualizar(@PathVariable Long id, @Valid @RequestBody EditalRequest dto) {
-        Edital atualizado = service.atualizar(id, toEntity(dto));
+        Edital atualizado = editalService.atualizar(id, toEntity(dto));
         return ResponseEntity.ok(toResponse(atualizado));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        service.deletar(id);
+        editalService.deletar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ---------------------------------------------------------
+    // EXTRAÇÃO DO FORMULÁRIO (RF06)
+    // ---------------------------------------------------------
+    @PostMapping("/{id}/formulario/extrair")
+    public ResponseEntity<?> extrairFormulario(
+            @PathVariable Long id,
+            @RequestParam("arquivo") MultipartFile arquivo) {
+
+        Edital edital = editalService.buscarPorId(id);
+        FormularioEdital formulario = extracaoFormularioService.extrairFormulario(edital, arquivo);
+
+        return ResponseEntity.ok("Formulário extraído com sucesso. Campos: " + formulario.getCampos().size());
     }
 
     // ---------------------------------------------------------

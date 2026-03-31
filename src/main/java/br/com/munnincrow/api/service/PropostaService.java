@@ -1,61 +1,88 @@
 package br.com.munnincrow.api.service;
 
-import br.com.munnincrow.api.dto.PropostaCreateDTO;
-import br.com.munnincrow.api.model.Edital;
-import br.com.munnincrow.api.model.Proposta;
-import br.com.munnincrow.api.model.User;
-import br.com.munnincrow.api.repository.PropostaRepository;
+import br.com.munnincrow.api.model.*;
+import br.com.munnincrow.api.repository.*;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
 public class PropostaService {
 
-    private final PropostaRepository repository;
+    private final PropostaRepository propostaRepo;
+    private final FormularioEditalRepository formularioRepo;
+    private final CampoFormularioRepository campoFormularioRepo;
+    private final CampoPropostaRepository campoPropostaRepo;
 
-    public PropostaService(PropostaRepository repository) {
-        this.repository = repository;
+    public PropostaService(PropostaRepository propostaRepo,
+                           FormularioEditalRepository formularioRepo,
+                           CampoFormularioRepository campoFormularioRepo,
+                           CampoPropostaRepository campoPropostaRepo) {
+        this.propostaRepo = propostaRepo;
+        this.formularioRepo = formularioRepo;
+        this.campoFormularioRepo = campoFormularioRepo;
+        this.campoPropostaRepo = campoPropostaRepo;
+    }
+
+    public Proposta criarProposta(User usuario, Edital edital) {
+        // Se já existir proposta para esse edital e usuário, retorna
+        return propostaRepo.findByUsuarioAndEdital(usuario, edital)
+                .orElseGet(() -> {
+                    Proposta p = new Proposta();
+                    p.setUsuario(usuario);
+                    p.setEdital(edital);
+                    p.setTitulo("Proposta para " + edital.getTitulo());
+                    p.setStatus("rascunho");
+                    p.setDataCriacao(LocalDate.now());
+                    p.setDataAtualizacao(LocalDate.now());
+
+                    Proposta salva = propostaRepo.save(p);
+
+                    inicializarCamposDaProposta(salva);
+
+                    return salva;
+                });
     }
 
     public Proposta buscarPorId(Long id) {
-        return repository.findById(id).orElse(null);
+        return propostaRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Proposta não encontrada."));
     }
 
-    public List<Proposta> listar() {
-        return repository.findAll();
+    public List<Proposta> listarPorUsuario(User usuario) {
+        return propostaRepo.findByUsuario(usuario);
     }
 
-    public List<Proposta> listarPorEdital(Long editalId) {
-        return repository.findByEditalId(editalId);
+    public List<Proposta> listarPorEdital(Edital edital) {
+        return propostaRepo.findByEdital(edital);
     }
 
-    public List<Proposta> listarPorUsuario(Long userId) {
-        return repository.findByCriadoPorId(userId);
+    public Proposta atualizarTituloEStatus(Long id, String titulo, String status) {
+        Proposta p = buscarPorId(id);
+        if (titulo != null && !titulo.isBlank()) {
+            p.setTitulo(titulo);
+        }
+        if (status != null && !status.isBlank()) {
+            p.setStatus(status);
+        }
+        p.setDataAtualizacao(LocalDate.now());
+        return propostaRepo.save(p);
     }
 
-    public Proposta criar(PropostaCreateDTO dto, User user, Edital edital) {
-        Proposta p = new Proposta();
-        p.setTitulo(dto.titulo);
-        p.setConteudo(dto.conteudo);
-        p.setCriadoPor(user);
-        p.setEdital(edital);
-        p.setDataCriacao(LocalDateTime.now());
-        return repository.save(p);
-    }
+    private void inicializarCamposDaProposta(Proposta proposta) {
+        formularioRepo.findByEdital(proposta.getEdital())
+                .ifPresent(formulario -> {
+                    List<CampoFormulario> camposOficiais = campoFormularioRepo.findByFormulario(formulario);
 
-    public Proposta atualizar(Long id, Proposta dados) {
-        return repository.findById(id).map(p -> {
-            p.setTitulo(dados.getTitulo());
-            p.setConteudo(dados.getConteudo());
-            return repository.save(p);
-        }).orElse(null);
-    }
-
-    public boolean deletar(Long id) {
-        if (!repository.existsById(id)) return false;
-        repository.deleteById(id);
-        return true;
+                    for (CampoFormulario cf : camposOficiais) {
+                        CampoProposta cp = new CampoProposta();
+                        cp.setProposta(proposta);
+                        cp.setNomeCampo(cf.getNomeCampo());
+                        cp.setValor("");
+                        cp.setConcluido(false);
+                        campoPropostaRepo.save(cp);
+                    }
+                });
     }
 }
