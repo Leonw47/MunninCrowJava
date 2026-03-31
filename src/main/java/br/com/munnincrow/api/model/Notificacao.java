@@ -4,36 +4,35 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "notificacao")
+@Table(name = "notificacoes")
 public class Notificacao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", nullable = false)
-    private User usuarioDestino;
+    @ManyToOne(optional = false)
+    private User usuario;
 
-    @Column(nullable = false, length = 1000)
+    @ManyToOne(optional = false)
+    private Edital edital;
+
+    @Column(nullable = false)
     private String mensagem;
 
-    @Column(nullable = false)
-    private LocalDateTime dataCriacao = LocalDateTime.now();
-
-    @Column(nullable = false)
     private boolean lida = false;
 
-    // getters e setters
+    private LocalDateTime dataCriacao = LocalDateTime.now();
 
-    public Long getId() {return id;}
-    public void setId(Long id) {this.id = id;}
-    public User getUsuarioDestino() {return usuarioDestino;}
-    public void setUsuarioDestino(User usuarioDestino) {this.usuarioDestino = usuarioDestino;}
-    public String getMensagem() {return mensagem;}
-    public void setMensagem(String mensagem) {this.mensagem = mensagem;}
-    public LocalDateTime getDataCriacao() {return dataCriacao;}
-    public void setDataCriacao(LocalDateTime dataCriacao) {this.dataCriacao = dataCriacao;}
-    public boolean isLida() {return lida;}
-    public void setLida(boolean lida) {this.lida = lida;}
+    public Long getId() { return id; }
+    public User getUsuario() { return usuario; }
+    public void setUsuario(User usuario) { this.usuario = usuario; }
+    public Edital getEdital() { return edital; }
+    public void setEdital(Edital edital) { this.edital = edital; }
+    public String getMensagem() { return mensagem; }
+    public void setMensagem(String mensagem) { this.mensagem = mensagem; }
+    public boolean isLida() { return lida; }
+    public void setLida(boolean lida) { this.lida = lida; }
+    public LocalDateTime getDataCriacao() { return dataCriacao; }
+    public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
 }

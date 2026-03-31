@@ -1,53 +1,71 @@
 package br.com.munnincrow.api.service;
 
+import br.com.munnincrow.api.model.Edital;
 import br.com.munnincrow.api.model.Notificacao;
 import br.com.munnincrow.api.model.User;
+import br.com.munnincrow.api.repository.EditalRepository;
 import br.com.munnincrow.api.repository.NotificacaoRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
 public class NotificacaoService {
 
-    private final NotificacaoRepository repository;
-    private final UserService userService;
+    private final NotificacaoRepository repo;
+    private final EditalRepository editalRepo;
+    private final RecomendacaoEditalService recomendacaoService;
 
-    public NotificacaoService(NotificacaoRepository repository, UserService userService) {
-        this.repository = repository;
-        this.userService = userService;
+    public NotificacaoService(NotificacaoRepository repo, EditalRepository editalRepo, RecomendacaoEditalService recomendacaoService) {
+        this.repo = repo;
+        this.editalRepo = editalRepo;
+        this.recomendacaoService = recomendacaoService;
     }
 
-    public void criar(Long usuarioId, String mensagem) {
-        User usuario = userService.buscarPorId(usuarioId);
-        if (usuario == null) {
-            throw new IllegalArgumentException("Usuário não encontrado.");
+    public void gerarNotificacoes(User usuario) {
+
+        List<Edital> recomendados = recomendacaoService.recomendarPara(usuario);
+
+        for (Edital e : recomendados) {
+
+            boolean urgente = e.getDataEncerramento() != null &&
+                    LocalDate.now().until(e.getDataEncerramento()).getDays() <= 5;
+
+            boolean novo = e.getDataImportacao() != null &&
+                    LocalDate.now().until(e.getDataImportacao()).getDays() >= -3;
+
+            if (urgente) {
+                criar(usuario, e, "O edital \"" + e.getTitulo() + "\" está prestes a encerrar!");
+            }
+
+            if (novo) {
+                criar(usuario, e, "Novo edital relevante disponível: \"" + e.getTitulo() + "\"");
+            }
+        }
+    }
+
+    public List<Notificacao> listar(User usuario) {
+        return repo.findByUsuarioOrderByDataCriacaoDesc(usuario);
+    }
+
+    public void marcarComoLida(Long id, User usuario) {
+        Notificacao n = repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Notificação não encontrada"));
+
+        if (!n.getUsuario().getId().equals(usuario.getId())) {
+            throw new SecurityException("Acesso negado");
         }
 
+        n.setLida(true);
+        repo.save(n);
+    }
+
+    private void criar(User usuario, Edital edital, String mensagem) {
         Notificacao n = new Notificacao();
-        n.setUsuarioDestino(usuario);
+        n.setUsuario(usuario);
+        n.setEdital(edital);
         n.setMensagem(mensagem);
-        repository.save(n);
-    }
-
-    public List<Notificacao> listar(Long usuarioId) {
-        return repository.findByUsuarioDestinoIdOrderByDataCriacaoDesc(usuarioId);
-    }
-
-    public List<Notificacao> listarNaoLidas(Long usuarioId) {
-        return repository.findByUsuarioDestinoIdAndLidaFalseOrderByDataCriacaoDesc(usuarioId);
-    }
-
-    public Notificacao marcarComoLida(Long id) {
-        return repository.findById(id).map(n -> {
-            n.setLida(true);
-            return repository.save(n);
-        }).orElse(null);
-    }
-
-    public void marcarTodasComoLidas(Long usuarioId) {
-        List<Notificacao> notificacoes = repository.findByUsuarioDestinoIdAndLidaFalseOrderByDataCriacaoDesc(usuarioId);
-        notificacoes.forEach(n -> n.setLida(true));
-        repository.saveAll(notificacoes);
+        repo.save(n);
     }
 }

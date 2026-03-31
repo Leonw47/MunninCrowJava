@@ -8,6 +8,8 @@ import br.com.munnincrow.api.model.enums.FonteImportacao;
 import br.com.munnincrow.api.model.enums.OrgaoEdital;
 import br.com.munnincrow.api.model.enums.StatusEdital;
 import br.com.munnincrow.api.repository.EditalRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import java.util.Optional;
 
 @Service
 public class EditalService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EditalService.class);
 
     private final EditalRepository editalRepo;
 
@@ -72,6 +76,10 @@ public class EditalService {
                 .orElseThrow(() -> new IllegalArgumentException("Edital não encontrado."));
     }
 
+    public Optional<Edital> buscarPorLinkOptional(String link) {
+        return editalRepo.findByLinkOficial(link);
+    }
+
     public Page<Edital> listar(Pageable pageable) {
         return editalRepo.findAll(pageable);
     }
@@ -111,7 +119,7 @@ public class EditalService {
     }
 
     // ---------------------------------------------------------
-    // APOIO AO IMPORTADOR (RF01)
+    // IMPORTAÇÃO AUTOMÁTICA (RF01)
     // ---------------------------------------------------------
     public Edital salvarImportado(Edital edital) {
         validarEdital(edital);
@@ -135,6 +143,7 @@ public class EditalService {
             existente.setFonte(FonteImportacao.SCRAPER);
             existente.setDataImportacao(LocalDate.now());
 
+            logger.debug("Edital atualizado via importação: {}", existente.getTitulo());
             return editalRepo.save(existente);
         }
 
@@ -142,6 +151,7 @@ public class EditalService {
         edital.setStatus(calcularStatus(edital.getDataAbertura(), edital.getDataEncerramento()));
         edital.setDataImportacao(LocalDate.now());
 
+        logger.debug("Novo edital importado: {}", edital.getTitulo());
         return editalRepo.save(edital);
     }
 

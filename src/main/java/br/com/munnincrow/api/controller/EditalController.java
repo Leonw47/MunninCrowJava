@@ -9,17 +9,21 @@ import br.com.munnincrow.api.model.Edital;
 import br.com.munnincrow.api.service.EditalImportService;
 import br.com.munnincrow.api.service.EditalService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/editais")
 public class EditalController {
+
+    private static final Logger logger = LoggerFactory.getLogger(EditalController.class);
 
     private final EditalService service;
     private final EditalImportService importService;
@@ -29,17 +33,45 @@ public class EditalController {
         this.importService = importService;
     }
 
+    // ---------------------------------------------------------
+    // IMPORTAÇÃO MANUAL (RF01)
+    // ---------------------------------------------------------
     @PostMapping("/importar")
-    public ResponseEntity<List<EditalResponse>> importar() {
+    public ResponseEntity<Map<String, Object>> importar() {
+        logger.info("Importação manual iniciada via endpoint.");
+
         List<Edital> importados = importService.importarTodos();
 
-        importados.forEach(service::salvarImportado);
+        int novos = 0;
+        int atualizados = 0;
+        int erros = 0;
 
-        return ResponseEntity.ok(
-                importados.stream().map(this::toResponse).toList()
-        );
+        for (Edital edital : importados) {
+            try {
+                boolean existe = service.buscarPorLinkOptional(edital.getLinkOficial()).isPresent();
+                service.salvarImportado(edital);
+
+                if (existe) atualizados++;
+                else novos++;
+
+            } catch (Exception e) {
+                erros++;
+                logger.warn("Falha ao salvar edital '{}' durante importação manual: {}", edital.getTitulo(), e.getMessage());
+            }
+        }
+
+        Map<String, Object> resposta = new HashMap<>();
+        resposta.put("novos", novos);
+        resposta.put("atualizados", atualizados);
+        resposta.put("erros", erros);
+        resposta.put("totalProcessados", novos + atualizados);
+
+        return ResponseEntity.ok(resposta);
     }
 
+    // ---------------------------------------------------------
+    // CONSULTAS (RF03)
+    // ---------------------------------------------------------
     @GetMapping
     public Page<EditalResponse> listar(Pageable pageable) {
         return service.listar(pageable).map(this::toResponse);
@@ -99,10 +131,13 @@ public class EditalController {
         return ResponseEntity.ok(toResponse(service.buscarPorId(id)));
     }
 
+    // ---------------------------------------------------------
+    // CRUD MANUAL (RF02)
+    // ---------------------------------------------------------
     @PostMapping
     public ResponseEntity<EditalResponse> salvar(@Valid @RequestBody EditalRequest dto) {
         Edital salvo = service.criar(toEntity(dto));
-        return ResponseEntity.ok(toResponse(salvo));
+        return ResponseEntity.status(201).body(toResponse(salvo));
     }
 
     @PutMapping("/{id}")
@@ -117,14 +152,16 @@ public class EditalController {
         return ResponseEntity.noContent().build();
     }
 
+    // ---------------------------------------------------------
+    // CONVERSÃO DTO <-> ENTIDADE
+    // ---------------------------------------------------------
     private Edital toEntity(EditalRequest dto) {
         Edital edital = new Edital();
         edital.setTitulo(dto.titulo);
-        edital.setDescricaoCurta(dto.descricao);
+        edital.setDescricaoCurta(dto.descricaoCurta);
         edital.setOrgao(dto.orgao);
         edital.setEstado(dto.estado);
         edital.setAreaTematica(dto.areaTematica);
-        edital.setAreaTematicaReal(dto.areaTematicaReal);
         edital.setCategoria(dto.categoria);
         edital.setDataAbertura(dto.dataAbertura);
         edital.setDataEncerramento(dto.dataEncerramento);
@@ -132,7 +169,6 @@ public class EditalController {
         edital.setValorMaximo(dto.valorMaximo);
         edital.setObjetivo(dto.objetivo);
         edital.setPublicoAlvo(dto.publicoAlvo);
-        edital.setStatus(dto.status);
         return edital;
     }
 
@@ -140,7 +176,7 @@ public class EditalController {
         EditalResponse resp = new EditalResponse();
         resp.id = edital.getId();
         resp.titulo = edital.getTitulo();
-        resp.descricao = edital.getDescricaoCurta();
+        resp.descricaoCurta = edital.getDescricaoCurta();
         resp.orgao = edital.getOrgao();
         resp.estado = edital.getEstado();
         resp.areaTematica = edital.getAreaTematica();

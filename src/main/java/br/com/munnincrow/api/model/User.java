@@ -1,27 +1,61 @@
 package br.com.munnincrow.api.model;
 
+import br.com.munnincrow.api.model.enums.Role;
 import jakarta.persistence.*;
-import java.util.List;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "users")
+@Table(name = "usuarios")
 public class User {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false)
+    private String senhaHash;
+
+    @Column(nullable = false)
     private String nome;
 
-    // CONSULTOR ou EMPREENDEDOR
-    private String tipoUsuario;
+    private String segmento;
 
-    private Double mediaAvaliacoes = 0.0;
+    private String maturidade;
 
-    private Integer totalAvaliacoes = 0;
+    private Double faturamentoAnual;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    private LocalDate dataCadastro = LocalDate.now();
 
     public Long getId() { return id; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getSenhaHash() { return senhaHash; }
+    public void setSenhaHash(String senhaHash) { this.senhaHash = senhaHash; }
+
     public String getNome() { return nome; }
-    public String getTipoUsuario() { return tipoUsuario; }
-    public Double getMediaAvaliacoes() { return mediaAvaliacoes; }
-    public Integer getTotalAvaliacoes() { return totalAvaliacoes; }
+    public void setNome(String nome) { this.nome = nome; }
+
+    public String getSegmento() { return segmento; }
+    public void setSegmento(String segmento) { this.segmento = segmento; }
+
+    public String getMaturidade() { return maturidade; }
+    public void setMaturidade(String maturidade) { this.maturidade = maturidade; }
+
+    public Double getFaturamentoAnual() { return faturamentoAnual; }
+    public void setFaturamentoAnual(Double faturamentoAnual) { this.faturamentoAnual = faturamentoAnual; }
+
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
+
+    public LocalDate getDataCadastro() { return dataCadastro; }
+    public void setDataCadastro(LocalDate dataCadastro) { this.dataCadastro = dataCadastro; }
 }

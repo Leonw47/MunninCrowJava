@@ -1,9 +1,10 @@
 package br.com.munnincrow.api.controller;
 
-import br.com.munnincrow.api.dto.NotificacaoResponse;
 import br.com.munnincrow.api.model.Notificacao;
+import br.com.munnincrow.api.model.User;
 import br.com.munnincrow.api.service.NotificacaoService;
-import org.springframework.http.ResponseEntity;
+import br.com.munnincrow.api.service.UserService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,45 +13,31 @@ import java.util.List;
 @RequestMapping("/api/notificacoes")
 public class NotificacaoController {
 
-    private final NotificacaoService service;
+    private final NotificacaoService notificacaoService;
+    private final UserService userService;
 
-    public NotificacaoController(NotificacaoService service) {
-        this.service = service;
+    public NotificacaoController(NotificacaoService notificacaoService, UserService userService) {
+        this.notificacaoService = notificacaoService;
+        this.userService = userService;
+    }
+
+    private User usuarioLogado() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userService.buscarPorEmail(email);
     }
 
     @GetMapping
-    public List<NotificacaoResponse> listar(@RequestParam Long usuarioId) {
-        return service.listar(usuarioId).stream()
-                .map(this::toResponse)
-                .toList();
+    public List<Notificacao> listar() {
+        return notificacaoService.listar(usuarioLogado());
     }
 
-    @GetMapping("/nao-lidas")
-    public List<NotificacaoResponse> listarNaoLidas(@RequestParam Long usuarioId) {
-        return service.listarNaoLidas(usuarioId).stream()
-                .map(this::toResponse)
-                .toList();
+    @PostMapping("/gerar")
+    public void gerar() {
+        notificacaoService.gerarNotificacoes(usuarioLogado());
     }
 
-    @PatchMapping("/{id}/lida")
-    public ResponseEntity<?> marcarComoLida(@PathVariable Long id) {
-        Notificacao n = service.marcarComoLida(id);
-        if (n == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(toResponse(n));
-    }
-
-    @PatchMapping("/marcar-todas")
-    public ResponseEntity<?> marcarTodasComoLidas(@RequestParam Long usuarioId) {
-        service.marcarTodasComoLidas(usuarioId);
-        return ResponseEntity.ok().build();
-    }
-
-    private NotificacaoResponse toResponse(Notificacao n) {
-        NotificacaoResponse resp = new NotificacaoResponse();
-        resp.id = n.getId();
-        resp.mensagem = n.getMensagem();
-        resp.dataCriacao = n.getDataCriacao();
-        resp.lida = n.isLida();
-        return resp;
+    @PutMapping("/{id}/lida")
+    public void marcarComoLida(@PathVariable Long id) {
+        notificacaoService.marcarComoLida(id, usuarioLogado());
     }
 }

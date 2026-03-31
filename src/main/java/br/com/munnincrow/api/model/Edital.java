@@ -15,26 +15,33 @@ public class Edital {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String titulo;
 
     @Column(length = 2000)
     private String descricaoCurta;
 
+    @Column(nullable = false)
     private String linkOficial;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private OrgaoEdital orgao;
 
+    @Column(nullable = false)
     private String estado;
 
     private String categoria;
 
     private String areaTematica;
 
+    // preenchido apenas pelo scraper
     private String areaTematicaReal;
 
+    @Column(nullable = false)
     private LocalDate dataAbertura;
 
+    @Column(nullable = false)
     private LocalDate dataEncerramento;
 
     private Double valorMaximo;
@@ -51,7 +58,7 @@ public class Edital {
     @Enumerated(EnumType.STRING)
     private StatusEdital status;
 
-    private LocalDate dataImportacao = LocalDate.now();
+    private LocalDate dataImportacao;
 
     public Long getId() { return id; }
 

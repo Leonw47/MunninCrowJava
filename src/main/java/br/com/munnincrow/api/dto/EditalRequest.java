@@ -1,7 +1,6 @@
 package br.com.munnincrow.api.dto;
 
 import br.com.munnincrow.api.model.enums.OrgaoEdital;
-import br.com.munnincrow.api.model.enums.StatusEdital;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -12,7 +11,7 @@ public class EditalRequest {
     @NotBlank
     public String titulo;
 
-    public String descricao;
+    public String descricaoCurta;
 
     @NotNull
     public OrgaoEdital orgao;
@@ -23,8 +22,6 @@ public class EditalRequest {
     public String categoria;
 
     public String areaTematica;
-
-    public String areaTematicaReal;
 
     @NotNull
     public LocalDate dataAbertura;
@@ -40,6 +37,4 @@ public class EditalRequest {
     public String objetivo;
 
     public String publicoAlvo;
-
-    public StatusEdital status;
 }

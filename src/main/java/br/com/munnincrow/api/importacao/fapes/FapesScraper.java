@@ -4,13 +4,15 @@ import br.com.munnincrow.api.importacao.ScraperEdital;
 import br.com.munnincrow.api.model.Edital;
 import br.com.munnincrow.api.model.enums.FonteImportacao;
 import br.com.munnincrow.api.model.enums.OrgaoEdital;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.net.URL;
 import java.time.LocalDate;
@@ -22,6 +24,8 @@ import java.util.regex.Pattern;
 
 @Component
 public class FapesScraper implements ScraperEdital {
+
+    private static final Logger logger = LoggerFactory.getLogger(FapesScraper.class);
 
     private static final String BASE = "https://fapes.es.gov.br";
     private static final DateTimeFormatter BR_NUMERIC = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -43,12 +47,15 @@ public class FapesScraper implements ScraperEdital {
 
     @Override
     public List<Edital> importar() {
+        logger.info("Iniciando scraper da FAPES...");
+
         List<Edital> lista = new ArrayList<>();
 
         lista.addAll(importarPagina(BASE + "/inovacao", "Inovação", "Inovação"));
         lista.addAll(importarPagina(BASE + "/difusao-do-conhecimento", "Difusão do Conhecimento", "Difusão do Conhecimento"));
         lista.addAll(importarPagina(BASE + "/chamadas-internacionais", "Chamadas Internacionais", "Chamadas Internacionais"));
 
+        logger.info("Scraper FAPES finalizado. Total coletado: {}", lista.size());
         return lista;
     }
 
@@ -56,64 +63,79 @@ public class FapesScraper implements ScraperEdital {
         List<Edital> lista = new ArrayList<>();
 
         try {
-            Document doc = Jsoup.connect(url).get();
+            logger.info("Carregando página da FAPES: {}", url);
+            Document doc = Jsoup.connect(url).timeout(15000).get();
 
             Elements cards = doc.select(".card-edital, .edital, .item-edital, .card, article, .listagem-edital");
 
             for (Element card : cards) {
+                try {
+                    String titulo = extrairTexto(card, "h3, h2, .titulo, .card-title");
+                    String descricao = extrairTexto(card, "p, .descricao, .card-text");
+                    String link = extrairLink(card, "a");
 
-                String titulo = extrairTexto(card, "h3, h2, .titulo, .card-title");
-                String descricao = extrairTexto(card, "p, .descricao, .card-text");
-                String link = extrairLink(card, "a");
+                    if (titulo == null || link == null) continue;
 
-                if (titulo == null || link == null) continue;
+                    Edital edital = new Edital();
+                    edital.setTitulo(titulo);
+                    edital.setDescricaoCurta(descricao != null ? descricao : "");
+                    edital.setLinkOficial(link);
+                    edital.setOrgao(OrgaoEdital.FAPES);
+                    edital.setEstado("ES");
+                    edital.setCategoria(categoria);
+                    edital.setAreaTematica(areaTematica);
+                    edital.setFonte(FonteImportacao.SCRAPER);
 
-                Edital edital = new Edital();
-                edital.setTitulo(titulo);
-                edital.setDescricaoCurta(descricao != null ? descricao : "");
-                edital.setLinkOficial(link);
-                edital.setOrgao(OrgaoEdital.FAPES);
-                edital.setEstado("ES");
-                edital.setCategoria(categoria);
-                edital.setAreaTematica(areaTematica);
-                edital.setFonte(FonteImportacao.SCRAPER);
+                    Map<String, Object> dados = extrairDadosDoPdf(link);
 
-                // Extração avançada do PDF
-                Map<String, Object> dados = extrairDadosDoPdf(link);
+                    edital.setDataAbertura((LocalDate) dados.getOrDefault("abertura", LocalDate.now().minusDays(5)));
+                    edital.setDataEncerramento((LocalDate) dados.getOrDefault("encerramento", LocalDate.now().plusDays(30)));
+                    edital.setValorMaximo((Double) dados.get("valor"));
+                    edital.setObjetivo((String) dados.get("objetivo"));
+                    edital.setPublicoAlvo((String) dados.get("publico"));
 
-                edital.setDataAbertura((LocalDate) dados.getOrDefault("abertura", LocalDate.now().minusDays(5)));
-                edital.setDataEncerramento((LocalDate) dados.getOrDefault("encerramento", LocalDate.now().plusDays(30)));
-                edital.setValorMaximo((Double) dados.get("valor"));
-                edital.setObjetivo((String) dados.get("objetivo"));
-                edital.setPublicoAlvo((String) dados.get("publico"));
-                String areaReal = (String) dados.get("areaReal");
-                if (areaReal != null) edital.setAreaTematica(areaReal);
+                    String areaReal = (String) dados.get("areaReal");
+                    if (areaReal != null && !areaReal.isBlank()) {
+                        edital.setAreaTematica(areaReal);
+                    }
 
-                lista.add(edital);
+                    lista.add(edital);
+
+                } catch (Exception e) {
+                    logger.warn("Falha ao processar card de edital na página {}: {}", url, e.getMessage());
+                }
             }
 
         } catch (Exception e) {
-            System.err.println("Erro ao importar página da FAPES (" + url + "): " + e.getMessage());
+            logger.error("Erro ao carregar página da FAPES {}: {}", url, e.getMessage());
         }
 
         return lista;
     }
 
     private String extrairTexto(Element card, String seletor) {
-        Element el = card.selectFirst(seletor);
-        return el != null ? el.text().trim() : null;
+        try {
+            Element el = card.selectFirst(seletor);
+            return el != null ? el.text().trim() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String extrairLink(Element card, String seletor) {
-        Element el = card.selectFirst(seletor);
-        if (el == null) return null;
+        try {
+            Element el = card.selectFirst(seletor);
+            if (el == null) return null;
 
-        String href = el.attr("href");
-        if (href == null || href.isBlank()) return null;
+            String href = el.attr("href");
+            if (href == null || href.isBlank()) return null;
 
-        if (href.startsWith("/")) return BASE + href;
+            if (href.startsWith("/")) return BASE + href;
+            return href;
 
-        return href;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private Map<String, Object> extrairDadosDoPdf(String urlPdf) {
@@ -124,8 +146,14 @@ public class FapesScraper implements ScraperEdital {
             PDFTextStripper stripper = new PDFTextStripper();
             String texto = stripper.getText(pdf);
 
-            String[] linhas = texto.split("\\r?\\n");
+            if (texto == null || texto.isBlank()) {
+                logger.warn("PDF vazio ou ilegível: {}", urlPdf);
+                return dados;
+            }
 
+            texto = texto.replaceAll("\\s+", " ").trim();
+
+            List<String> linhas = Arrays.asList(texto.split("\\r?\\n"));
             List<String> relevantes = new ArrayList<>();
 
             for (String linha : linhas) {
@@ -164,7 +192,7 @@ public class FapesScraper implements ScraperEdital {
             dados.put("publico", extrairPublicoAlvo(texto));
 
         } catch (Exception e) {
-            System.err.println("Erro ao extrair dados do PDF (" + urlPdf + "): " + e.getMessage());
+            logger.error("Erro ao extrair dados do PDF {}: {}", urlPdf, e.getMessage());
         }
 
         return dados;
@@ -211,20 +239,23 @@ public class FapesScraper implements ScraperEdital {
     }
 
     private Double extrairValorFinanceiro(String texto) {
-        Matcher m1 = Pattern.compile("R\\$\\s*([0-9\\.]+,[0-9]{2})").matcher(texto);
-        if (m1.find()) {
-            String raw = m1.group(1).replace(".", "").replace(",", ".");
-            return Double.parseDouble(raw);
-        }
+        try {
+            Matcher m1 = Pattern.compile("R\\$\\s*([0-9\\.]+,[0-9]{2})").matcher(texto);
+            if (m1.find()) {
+                String raw = m1.group(1).replace(".", "").replace(",", ".");
+                return Double.parseDouble(raw);
+            }
 
-        Matcher m2 = Pattern.compile("R\\$\\s*([0-9]+)\\s*(mil|milhão|milhões)").matcher(texto.toLowerCase());
-        if (m2.find()) {
-            double base = Double.parseDouble(m2.group(1));
-            String unidade = m2.group(2);
+            Matcher m2 = Pattern.compile("R\\$\\s*([0-9]+)\\s*(mil|milhão|milhões)").matcher(texto.toLowerCase());
+            if (m2.find()) {
+                double base = Double.parseDouble(m2.group(1));
+                String unidade = m2.group(2);
 
-            if (unidade.startsWith("milh")) return base * 1_000_000;
-            if (unidade.startsWith("mil")) return base * 1000;
-        }
+                if (unidade.startsWith("milh")) return base * 1_000_000;
+                if (unidade.startsWith("mil")) return base * 1000;
+            }
+
+        } catch (Exception ignored) {}
 
         return null;
     }

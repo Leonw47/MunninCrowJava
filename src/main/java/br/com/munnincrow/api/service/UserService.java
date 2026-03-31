@@ -1,42 +1,56 @@
 package br.com.munnincrow.api.service;
 
+import br.com.munnincrow.api.dto.PerfilUpdateRequest;
 import br.com.munnincrow.api.model.User;
 import br.com.munnincrow.api.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class UserService {
 
-    private final UserRepository repository;
+    private final UserRepository repo;
+    private final PasswordEncoder encoder;
 
-    public UserService(UserRepository repository) {
-        this.repository = repository;
+    public UserService(UserRepository repo, PasswordEncoder encoder) {
+        this.repo = repo;
+        this.encoder = encoder;
     }
 
-    public User buscarPorId(Long id) {
-        return repository.findById(id).orElse(null);
+    public User registrar(User user) {
+        user.setSenhaHash(encoder.encode(user.getSenhaHash()));
+        return repo.save(user);
     }
 
     public User buscarPorEmail(String email) {
-        return repository.findByEmail(email).orElse(null);
+        return repo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
     }
 
-    public List<User> listar() {
-        return repository.findAll();
+    public User buscarPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
     }
 
-    public User salvar(User user) {
-        if (repository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("Email já cadastrado.");
+    public User atualizarPerfil(User user, PerfilUpdateRequest req) {
+
+        if (req.nome != null && !req.nome.isBlank()) {
+            user.setNome(req.nome);
         }
-        return repository.save(user);
+
+        if (req.segmento != null) {
+            user.setSegmento(req.segmento);
+        }
+
+        if (req.maturidade != null) {
+            user.setMaturidade(req.maturidade);
+        }
+
+        if (req.faturamentoAnual != null) {
+            user.setFaturamentoAnual(req.faturamentoAnual);
+        }
+
+        return repo.save(user);
     }
 
-    public boolean deletar(Long id) {
-        if (!repository.existsById(id)) return false;
-        repository.deleteById(id);
-        return true;
-    }
 }

@@ -48,20 +48,32 @@ public interface EditalRepository extends JpaRepository<Edital, Long> {
     );
 
     @Query("""
-        SELECT new br.com.munnincrow.api.dto.EstatisticaEstadoResponse(e.estado, COUNT(e))
-        FROM Edital e GROUP BY e.estado
+        SELECT new br.com.munnincrow.api.dto.EstatisticaEstadoResponse(
+            COALESCE(e.estado, 'Não informado'),
+            COUNT(e)
+        )
+        FROM Edital e
+        GROUP BY e.estado
         """)
     List<EstatisticaEstadoResponse> estatisticasPorEstado();
 
     @Query("""
-        SELECT new br.com.munnincrow.api.dto.EstatisticaCategoriaResponse(e.categoria, COUNT(e))
-        FROM Edital e GROUP BY e.categoria
+        SELECT new br.com.munnincrow.api.dto.EstatisticaCategoriaResponse(
+            COALESCE(e.categoria, 'Não informado'),
+            COUNT(e)
+        )
+        FROM Edital e
+        GROUP BY e.categoria
         """)
     List<EstatisticaCategoriaResponse> estatisticasPorCategoria();
 
     @Query("""
-        SELECT new br.com.munnincrow.api.dto.EstatisticaAreaTematicaResponse(e.areaTematica, COUNT(e))
-        FROM Edital e GROUP BY e.areaTematica
+        SELECT new br.com.munnincrow.api.dto.EstatisticaAreaTematicaResponse(
+            COALESCE(e.areaTematica, 'Não informado'),
+            COUNT(e)
+        )
+        FROM Edital e
+        GROUP BY e.areaTematica
         """)
     List<EstatisticaAreaTematicaResponse> estatisticasPorAreaTematica();
 }
