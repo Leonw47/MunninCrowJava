@@ -1,0 +1,59 @@
+📘 MunninCrow – API de Tutorias
+Documentação oficial do módulo de Tutorias, responsável pelo fluxo de solicitação, negociação e fechamento de tutorias entre empreendedores e consultores.
+
+🧩 Visão Geral
+• Empreendedores criarem solicitações de tutoria.
+• Consultores enviarem propostas.
+• Empreendedores aceitarem propostas.
+• Consultores recusarem suas próprias propostas.
+• Acompanhamento completo da negociação.
+• Histórico detalhado de todas as ações.
+• Cancelamento e reabertura de solicitações.
+• Expiração automática após período configurado.
+
+🏛 Arquitetura do Módulo
+
+Entidades principais
+• SolicitacaoTutoria
+• PropostaTutoria
+• HistoricoTutoria
+• User (já existente no sistema)
+
+Serviços
+• SolicitacaoTutoriaService
+• PropostaTutoriaService
+• HistoricoTutoriaService
+
+Controllers
+• SolicitacaoTutoriaController
+• PropostaTutoriaController
+• HistoricoTutoriaController
+
+📌 Estados e Regras de Negócio
+
+Estados da Solicitação
+Status	Descrição
+ABERTA	Aguardando propostas
+EM_NEGOCIACAO	Recebeu propostas
+FECHADA	Proposta aceita
+CANCELADA	Encerrada pelo empreendedor
+EXPIRADA	Encerrada automaticamente
+
+Estados da Proposta
+Status	Descrição
+PENDENTE	Aguardando ação
+ACEITA	Aceita pelo empreendedor
+RECUSADA	Recusada pelo consultor autor
+
+🔐 Permissões
+
+Ação	Empreendedor	Consultor
+
+Criar solicitação	✔️	❌
+Enviar proposta (ABERTA)	❌	✔️
+Enviar proposta (DIRETA)	❌	✔️ apenas consultor indicado
+Aceitar proposta	✔️	❌
+Recusar proposta	❌	✔️ apenas autor
+Cancelar solicitação	✔️	❌
+Reabrir solicitação	✔️	❌
+

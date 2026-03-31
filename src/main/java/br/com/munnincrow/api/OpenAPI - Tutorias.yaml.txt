@@ -1,0 +1,354 @@
+A documentação Swagger/OpenAPI para o módulo de Tutorias pode ser construída como um arquivo OpenAPI 3.0 completo, descrevendo todos os endpoints, modelos, parâmetros, respostas e regras. A seguir está uma versão estruturada e pronta para uso, organizada em seções claras e alinhada com tudo que já implementamos no backend.
+
+🟦 OpenAPI 3.0 – MunninCrow API de Tutorias
+A especificação abaixo pode ser usada diretamente em:
+- Swagger UI
+- Swagger Editor
+- Postman
+- Insomnia
+- Redoc
+- Ferramentas de geração de SDK
+Ela cobre Solicitações, Propostas, Negociação, Histórico, Cancelamento, Reabertura e Expiração.
+
+📘 Especificação OpenAPI (YAML)
+openapi: 3.0.3
+info:
+  title: MunninCrow - API de Tutorias
+  version: 1.0.0
+  description: |
+    API responsável pelo fluxo de solicitação, negociação e fechamento de tutorias entre empreendedores e consultores.
+
+servers:
+  - url: http://localhost:8080/api
+    description: Ambiente local
+
+paths:
+
+  /tutorias:
+    get:
+      summary: Lista todas as solicitações de tutoria
+      tags: [Solicitações]
+      responses:
+        '200':
+          description: Lista de solicitações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SolicitacaoTutoriaResponse'
+
+    post:
+      summary: Cria uma nova solicitação de tutoria
+      tags: [Solicitações]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitacaoTutoriaRequest'
+      responses:
+        '201':
+          description: Solicitação criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoTutoriaResponse'
+
+  /tutorias/{id}:
+    get:
+      summary: Busca uma solicitação pelo ID
+      tags: [Solicitações]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Solicitação encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoTutoriaResponse'
+        '404':
+          description: Não encontrada
+
+    delete:
+      summary: Remove uma solicitação
+      tags: [Solicitações]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Removida com sucesso
+
+  /tutorias/{id}/cancelar:
+    patch:
+      summary: Cancela uma solicitação
+      tags: [Solicitações]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: usuarioId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Solicitação cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoTutoriaResponse'
+
+  /tutorias/{id}/reabrir:
+    patch:
+      summary: Reabre uma solicitação cancelada ou expirada
+      tags: [Solicitações]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: usuarioId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Solicitação reaberta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoTutoriaResponse'
+
+  /tutorias/{id}/negociacao:
+    get:
+      summary: Retorna o pacote completo da negociação
+      tags: [Negociação]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: usuarioId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dados completos da negociação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NegociacaoTutoriaResponse'
+
+  /tutorias/{id}/historico:
+    get:
+      summary: Retorna o histórico da negociação
+      tags: [Histórico]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de eventos do histórico
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoricoTutoriaResponse'
+
+  /propostas:
+    post:
+      summary: Cria uma nova proposta
+      tags: [Propostas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropostaTutoriaRequest'
+      responses:
+        '201':
+          description: Proposta criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropostaTutoriaResponse'
+
+  /propostas/solicitacao/{id}:
+    get:
+      summary: Lista propostas de uma solicitação
+      tags: [Propostas]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de propostas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropostaTutoriaResponse'
+
+  /propostas/{id}/status:
+    patch:
+      summary: Atualiza o status de uma proposta
+      tags: [Propostas]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: status
+          required: true
+          schema:
+            type: string
+            enum: [ACEITA, RECUSADA]
+        - in: query
+          name: autorId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropostaTutoriaResponse'
+
+components:
+
+  schemas:
+
+    SolicitacaoTutoriaRequest:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [ABERTA, DIRETA]
+        descricao:
+          type: string
+        empreendedorId:
+          type: integer
+        consultorId:
+          type: integer
+          nullable: true
+
+    SolicitacaoTutoriaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+        descricao:
+          type: string
+        empreendedorId:
+          type: integer
+        consultorId:
+          type: integer
+          nullable: true
+        dataCriacao:
+          type: string
+          format: date-time
+
+    PropostaTutoriaRequest:
+      type: object
+      properties:
+        valor:
+          type: number
+        descricao:
+          type: string
+        autorId:
+          type: integer
+        solicitacaoId:
+          type: integer
+
+    PropostaTutoriaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        valor:
+          type: number
+        descricao:
+          type: string
+        dataCriacao:
+          type: string
+          format: date-time
+        status:
+          type: string
+        autorId:
+          type: integer
+        solicitacaoId:
+          type: integer
+
+    HistoricoTutoriaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        mensagem:
+          type: string
+        data:
+          type: string
+          format: date-time
+        usuarioId:
+          type: integer
+
+    PermissoesNegociacao:
+      type: object
+      properties:
+        usuarioId:
+          type: integer
+        podeEnviarProposta:
+          type: boolean
+        podeAceitarProposta:
+          type: boolean
+        podeRecusarPropriaProposta:
+          type: boolean
+        solicitacaoFechada:
+          type: boolean
+
+    NegociacaoTutoriaResponse:
+      type: object
+      properties:
+        solicitacao:
+          $ref: '#/components/schemas/SolicitacaoTutoriaResponse'
+        propostas:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropostaTutoriaResponse'
+        permissoes:
+          $ref: '#/components/schemas/PermissoesNegociacao'
+
