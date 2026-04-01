@@ -76,10 +76,13 @@ public class UserService {
             throw new IllegalStateException("Nenhum usuário autenticado.");
         }
 
-        String email = auth.getName(); // normalmente o username é o email
+        Object principal = auth.getPrincipal();
 
-        return repo.findByEmail(email)
-                .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado no banco."));
+        if (principal instanceof User user) {
+            return buscarPorEmail(user.getEmail());
+        }
+
+        throw new IllegalStateException("Usuário autenticado inválido.");
     }
 
     public UserResponseDTO toDTO(User user) {

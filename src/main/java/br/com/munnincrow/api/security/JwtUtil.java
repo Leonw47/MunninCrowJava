@@ -1,53 +1,56 @@
 package br.com.munnincrow.api.security;
 
 import br.com.munnincrow.api.model.User;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.time.Instant;
+import java.time.Duration;
 import java.util.Date;
+
+import org.springframework.stereotype.Component;
 
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "uma_chave_secreta_bem_grande_e_segura_para_jwt_123456";
-    private final long EXPIRATION = 1000 * 60 * 60 * 24; // 24h
+    private final SecretKey SECRET = Keys.hmacShaKeyFor(
+            "sua_chave_secreta_segura_sua_chave_secreta_segura".getBytes()
+    );
 
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+    public String extrairEmail(String token) {
+        return extrairClaims(token).getSubject();
+    }
+
+    public Claims extrairClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(SECRET)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public boolean tokenValido(String token, User user) {
+        String email = extrairEmail(token);
+        return email.equals(user.getEmail()) && !expirado(token);
+    }
+
+    private boolean expirado(String token) {
+        Date exp = extrairClaims(token).getExpiration();
+        return exp.before(new Date());
     }
 
     public String gerarToken(User user) {
-        Date agora = new Date();
-        Date expira = new Date(agora.getTime() + EXPIRATION);
-
         return Jwts.builder()
                 .setSubject(user.getEmail())
+                .setIssuer("munnincrow-api")
+                .setAudience("munnincrow-client")
                 .claim("role", user.getRole().name())
-                .setIssuedAt(agora)
-                .setExpiration(expira)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .setIssuedAt(new Date())
+                .setExpiration(Date.from(Instant.now().plus(Duration.ofMinutes(10))))
+                .signWith(SECRET, SignatureAlgorithm.HS256)
                 .compact();
-    }
-
-    public String getEmailFromToken(String token) {
-        return parseClaims(token).getBody().getSubject();
-    }
-
-    public boolean tokenValido(String token) {
-        try {
-            parseClaims(token);
-            return true;
-        } catch (JwtException e) {
-            return false;
-        }
-    }
-
-    private Jws<Claims> parseClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token);
     }
 }

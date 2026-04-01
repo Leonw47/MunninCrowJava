@@ -1,5 +1,6 @@
 package br.com.munnincrow.api.service;
 
+import br.com.munnincrow.api.dto.AuthResponse;
 import br.com.munnincrow.api.model.RefreshToken;
 import br.com.munnincrow.api.model.User;
 import br.com.munnincrow.api.repository.RefreshTokenRepository;
@@ -25,27 +26,46 @@ public class RefreshTokenService {
         RefreshToken rt = new RefreshToken();
         rt.setToken(UUID.randomUUID().toString());
         rt.setUser(user);
-        rt.setExpiracao(LocalDateTime.now().plusDays(7)); // 7 dias
+        rt.setExpiracao(LocalDateTime.now().plusDays(7));
+        rt.setRevogado(false);
 
         return repo.save(rt);
     }
 
-    public String renovar(String refreshToken) {
+    public AuthResponse renovar(String refreshToken) {
 
         RefreshToken rt = repo.findByToken(refreshToken)
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token inválido."));
 
-        if (rt.expirado()) {
+        if (rt.isRevogado() || rt.expirado()) {
             repo.delete(rt);
-            throw new IllegalArgumentException("Refresh token expirado.");
+            throw new IllegalArgumentException("Refresh token expirado ou revogado.");
         }
 
         User user = rt.getUser();
 
-        return jwtUtil.gerarToken(user);
+        // Revoga o token antigo
+        rt.setRevogado(true);
+        repo.save(rt);
+
+        // Gera novos tokens
+        String novoAccessToken = jwtUtil.gerarToken(user);
+        RefreshToken novoRefreshToken = criar(user);
+
+        return new AuthResponse(novoAccessToken, novoRefreshToken.getToken());
     }
 
     public void revogar(String refreshToken) {
-        repo.findByToken(refreshToken).ifPresent(repo::delete);
+        repo.findByToken(refreshToken).ifPresent(rt -> {
+            rt.setRevogado(true);
+            repo.save(rt);
+        });
+    }
+
+    public void revogarTodos(User user) {
+        repo.findAllByUser(user).forEach(rt -> {
+            rt.setRevogado(true);
+            repo.save(rt);
+        });
     }
 }

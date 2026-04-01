@@ -5,6 +5,8 @@ import br.com.munnincrow.api.model.RefreshToken;
 import br.com.munnincrow.api.model.User;
 import br.com.munnincrow.api.security.JwtUtil;
 import br.com.munnincrow.api.service.*;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +21,7 @@ public class AuthController {
     private final EmailChangeService emailChangeService;
     private final EmailVerificationService emailVerificationService;
     private final RefreshTokenService refreshTokenService;
+    private final AuthenticationManager authenticationManager;
 
     public AuthController(
             UserService userService,
@@ -27,7 +30,8 @@ public class AuthController {
             PasswordResetService passwordResetService,
             EmailChangeService emailChangeService,
             EmailVerificationService emailVerificationService,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            AuthenticationManager authenticationManager) {
 
         this.userService = userService;
         this.encoder = encoder;
@@ -36,40 +40,36 @@ public class AuthController {
         this.emailChangeService = emailChangeService;
         this.emailVerificationService = emailVerificationService;
         this.refreshTokenService = refreshTokenService;
+        this.authenticationManager = authenticationManager;
     }
 
     @PostMapping("/register")
-    public LoginResponse registrar(@RequestBody RegisterRequest req) {
+    public AuthResponse registrar(@RequestBody RegisterRequest req) {
 
         User novo = new User();
         novo.setNome(req.nome);
         novo.setEmail(req.email);
-        novo.setSenhaHash(req.senha);
+        novo.setSenhaHash(encoder.encode(req.senha));
 
         User salvo = userService.registrar(novo);
 
         emailVerificationService.enviarTokenVerificacao(salvo);
 
-        String token = jwtUtil.gerarToken(salvo);
+        String accessToken = jwtUtil.gerarToken(salvo);
+        RefreshToken refreshToken = refreshTokenService.criar(salvo);
 
-        return new LoginResponse(token);
+        return new AuthResponse(accessToken, refreshToken.getToken());
     }
+
 
     @PostMapping("/login")
     public AuthResponse login(@RequestBody LoginRequest req) {
 
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.email, req.senha)
+        );
+
         User user = userService.buscarPorEmail(req.email);
-
-        if (userService.contaBloqueada(user)) {
-            throw new IllegalStateException("Conta temporariamente bloqueada.");
-        }
-
-        if (!encoder.matches(req.senha, user.getSenhaHash())) {
-            userService.registrarFalhaLogin(user);
-            throw new IllegalArgumentException("Credenciais inválidas.");
-        }
-
-        userService.limparTentativas(user);
 
         String accessToken = jwtUtil.gerarToken(user);
         RefreshToken refreshToken = refreshTokenService.criar(user);
