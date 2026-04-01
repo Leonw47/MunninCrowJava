@@ -38,16 +38,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(7);
 
             if (jwtUtil.tokenValido(token)) {
-                String email = jwtUtil.getEmailFromToken(token);
-                User user = userService.buscarPorEmail(email);
 
-                var auth = new UsernamePasswordAuthenticationToken(
-                        user.getEmail(),
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-                );
+                // Evita sobrescrever autenticação já existente
+                if (SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                    String email = jwtUtil.getEmailFromToken(token);
+                    User user = userService.buscarPorEmail(email);
+
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            user.getEmail(),
+                            null,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                    );
+
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             }
         }
 

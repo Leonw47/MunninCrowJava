@@ -1,16 +1,11 @@
 package br.com.munnincrow.api.controller;
 
-import br.com.munnincrow.api.dto.AuthResponse;
-import br.com.munnincrow.api.dto.LoginRequest;
-import br.com.munnincrow.api.dto.RegisterRequest;
-import br.com.munnincrow.api.model.enums.Role;
+import br.com.munnincrow.api.dto.*;
+import br.com.munnincrow.api.model.RefreshToken;
 import br.com.munnincrow.api.model.User;
 import br.com.munnincrow.api.security.JwtUtil;
-import br.com.munnincrow.api.service.UserService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
+import br.com.munnincrow.api.service.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,57 +13,147 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
-    private final AuthenticationManager authManager;
+    private final PasswordResetService passwordResetService;
+    private final EmailChangeService emailChangeService;
+    private final EmailVerificationService emailVerificationService;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthController(UserService userService, JwtUtil jwtUtil, AuthenticationManager authManager) {
+    public AuthController(
+            UserService userService,
+            PasswordEncoder encoder,
+            JwtUtil jwtUtil,
+            PasswordResetService passwordResetService,
+            EmailChangeService emailChangeService,
+            EmailVerificationService emailVerificationService,
+            RefreshTokenService refreshTokenService) {
+
         this.userService = userService;
+        this.encoder = encoder;
         this.jwtUtil = jwtUtil;
-        this.authManager = authManager;
+        this.passwordResetService = passwordResetService;
+        this.emailChangeService = emailChangeService;
+        this.emailVerificationService = emailVerificationService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest req) {
-        User user = new User();
-        user.setNome(req.nome);
-        user.setEmail(req.email);
-        user.setSenhaHash(req.senha);
-        user.setSegmento(req.segmento);
-        user.setMaturidade(req.maturidade);
-        user.setFaturamentoAnual(req.faturamentoAnual);
-        user.setRole(Role.USER);
+    public LoginResponse registrar(@RequestBody RegisterRequest req) {
 
-        User salvo = userService.registrar(user);
+        User novo = new User();
+        novo.setNome(req.nome);
+        novo.setEmail(req.email);
+        novo.setSenhaHash(req.senha);
+
+        User salvo = userService.registrar(novo);
+
+        emailVerificationService.enviarTokenVerificacao(salvo);
+
         String token = jwtUtil.gerarToken(salvo);
 
-        AuthResponse resp = new AuthResponse();
-        resp.token = token;
-        resp.nome = salvo.getNome();
-        resp.email = salvo.getEmail();
-        resp.role = salvo.getRole().name();
-
-        return ResponseEntity.ok(resp);
+        return new LoginResponse(token);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
-        try {
-            var authToken = new UsernamePasswordAuthenticationToken(req.email, req.senha);
-            authManager.authenticate(authToken);
+    public AuthResponse login(@RequestBody LoginRequest req) {
 
-            User user = userService.buscarPorEmail(req.email);
-            String token = jwtUtil.gerarToken(user);
+        User user = userService.buscarPorEmail(req.email);
 
-            AuthResponse resp = new AuthResponse();
-            resp.token = token;
-            resp.nome = user.getNome();
-            resp.email = user.getEmail();
-            resp.role = user.getRole().name();
-
-            return ResponseEntity.ok(resp);
-
-        } catch (AuthenticationException e) {
-            return ResponseEntity.status(401).build();
+        if (userService.contaBloqueada(user)) {
+            throw new IllegalStateException("Conta temporariamente bloqueada.");
         }
+
+        if (!encoder.matches(req.senha, user.getSenhaHash())) {
+            userService.registrarFalhaLogin(user);
+            throw new IllegalArgumentException("Credenciais inválidas.");
+        }
+
+        userService.limparTentativas(user);
+
+        String accessToken = jwtUtil.gerarToken(user);
+        RefreshToken refreshToken = refreshTokenService.criar(user);
+
+        return new AuthResponse(accessToken, refreshToken.getToken());
+    }
+
+    @GetMapping("/me")
+    public UserResponseDTO me() {
+        User usuario = userService.getUsuarioLogado();
+        return userService.toDTO(usuario);
+    }
+
+    @PutMapping("/change-password")
+    public String alterarSenha(@RequestBody UpdatePasswordRequest req) {
+
+        User usuario = userService.getUsuarioLogado();
+
+        userService.atualizarSenha(usuario, req.senhaAtual, req.novaSenha);
+
+        return "Senha atualizada com sucesso.";
+    }
+
+    @PostMapping("/forgot-password")
+    public String solicitarReset(@RequestBody PasswordResetRequest req) {
+        passwordResetService.solicitarReset(req.email);
+        return "Se o e-mail existir, enviaremos instruções de recuperação.";
+    }
+
+    @PostMapping("/reset-password")
+    public String resetarSenha(@RequestBody PasswordResetConfirmRequest req) {
+        passwordResetService.redefinirSenha(req.token, req.novaSenha);
+        return "Senha redefinida com sucesso.";
+    }
+
+    @PutMapping("/me/update")
+    public UserResponseDTO atualizarPerfil(@RequestBody UpdateProfileRequest req) {
+
+        User usuario = userService.getUsuarioLogado();
+
+        User atualizado = userService.atualizarPerfil(usuario, req);
+
+        return userService.toDTO(atualizado);
+    }
+
+    @PutMapping("/me/change-email")
+    public String solicitarTrocaEmail(@RequestBody EmailChangeRequest req) {
+
+        User usuario = userService.getUsuarioLogado();
+
+        emailChangeService.solicitarTrocaEmail(usuario, req.novoEmail);
+
+        return "Se o e-mail informado for válido, enviaremos um link de confirmação.";
+    }
+
+    @PostMapping("/confirm-email-change")
+    public String confirmarTroca(@RequestBody EmailChangeConfirmRequest req) {
+
+        emailChangeService.confirmarTrocaEmail(req.token);
+
+        return "E-mail atualizado com sucesso.";
+    }
+
+    @PostMapping("/verify-email")
+    public String verificarEmail(@RequestBody EmailChangeConfirmRequest req) {
+
+        emailVerificationService.verificarEmail(req.token);
+
+        return "E-mail verificado com sucesso.";
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@RequestBody RefreshRequest req) {
+
+        String novoAccessToken = refreshTokenService.renovar(req.refreshToken);
+
+        return new AuthResponse(novoAccessToken, req.refreshToken);
+    }
+
+    @PostMapping("/logout")
+    public String logout(@RequestBody LogoutRequest req) {
+
+        refreshTokenService.revogar(req.refreshToken);
+
+        return "Logout realizado com sucesso.";
     }
 }

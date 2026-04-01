@@ -2,6 +2,7 @@ package br.com.munnincrow.api.controller;
 
 import br.com.munnincrow.api.dto.PerfilResponse;
 import br.com.munnincrow.api.dto.PerfilUpdateRequest;
+import br.com.munnincrow.api.dto.UpdateProfileRequest;
 import br.com.munnincrow.api.model.User;
 import br.com.munnincrow.api.service.UserService;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,9 +38,10 @@ public class PerfilController {
         return resp;
     }
 
-    @PutMapping
-    public PerfilResponse atualizar(@RequestBody PerfilUpdateRequest req) {
-        User u = usuarioLogado();
+    @PutMapping("/me/update")
+    public PerfilResponse atualizar(@RequestBody UpdateProfileRequest req) {
+
+        User u = userService.getUsuarioLogado();
         User atualizado = userService.atualizarPerfil(u, req);
 
         PerfilResponse resp = new PerfilResponse();

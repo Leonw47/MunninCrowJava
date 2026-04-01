@@ -1,8 +1,11 @@
 package br.com.munnincrow.api.dto;
 
 public class AuthResponse {
-    public String token;
-    public String nome;
-    public String email;
-    public String role;
+    public String accessToken;
+    public String refreshToken;
+
+    public AuthResponse(String accessToken, String refreshToken) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+    }
 }

@@ -3,6 +3,7 @@ package br.com.munnincrow.api.model;
 import br.com.munnincrow.api.model.enums.Role;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "usuarios")
@@ -16,7 +17,15 @@ public class User {
     private String email;
 
     @Column(nullable = false)
+    private boolean emailVerificado = false;
+
+    @Column(nullable = false)
     private String senhaHash;
+
+    @Column(nullable = false)
+    private int tentativasFalhas = 0;
+
+    private LocalDateTime bloqueadoAte;
 
     @Column(nullable = false)
     private String nome;
@@ -38,6 +47,13 @@ public class User {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
+    public boolean isEmailVerificado() {
+        return emailVerificado;
+    }
+    public void setEmailVerificado(boolean emailVerificado) {
+        this.emailVerificado = emailVerificado;
+    }
+
     public String getSenhaHash() { return senhaHash; }
     public void setSenhaHash(String senhaHash) { this.senhaHash = senhaHash; }
 
@@ -58,4 +74,17 @@ public class User {
 
     public LocalDate getDataCadastro() { return dataCadastro; }
     public void setDataCadastro(LocalDate dataCadastro) { this.dataCadastro = dataCadastro; }
+
+    public int getTentativasFalhas() {
+        return tentativasFalhas;
+    }
+    public void setTentativasFalhas(int tentativasFalhas) {
+        this.tentativasFalhas = tentativasFalhas;
+    }
+    public LocalDateTime getBloqueadoAte() {
+        return bloqueadoAte;
+    }
+    public void setBloqueadoAte(LocalDateTime bloqueadoAte) {
+        this.bloqueadoAte = bloqueadoAte;
+    }
 }

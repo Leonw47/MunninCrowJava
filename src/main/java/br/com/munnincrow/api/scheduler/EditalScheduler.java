@@ -24,7 +24,7 @@ public class EditalScheduler {
         this.editalService = editalService;
     }
 
-    @Scheduled(cron = "0 0 3 * * *")
+    @Scheduled(cron = "0 0 3 * * *") // todos os dias às 03:00
     public void importarEditaisAutomaticamente() {
         logger.info("=== Iniciando importação automática de editais ===");
 
